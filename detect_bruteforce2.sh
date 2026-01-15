@@ -1,7 +1,7 @@
 #!/bin/bash
 # Logic: Scans logs, identifies attackers with >= 3 failures, and bans them via iptables.
 
-LOG_FILE="/var/log/auth.log"
+LOG_FILE="/var/log/fail2ban.log"
 THRESHOLD=3
 WHITELIST="/etc/proc_whitelist.txt" # Ensure your Jumpbox IP is in here!
 CHAIN="BAD-ACTORS"
@@ -14,7 +14,7 @@ echo "[*] Scanning $LOG_FILE for brute force attempts (Threshold: $THRESHOLD)...
 
 # 2. Extract IPs with 3 or more Failed password attempts
 # We use a temp file to store the list of IPs that hit the threshold
-ATTACKERS=$(grep "Failed password" "$LOG_FILE" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | \
+ATTACKERS=$(grep "Ban" "$LOG_FILE" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | \
             sort | uniq -c | awk -v limit="$THRESHOLD" '$1 >= limit {print $2}')
 
 if [ -z "$ATTACKERS" ]; then
