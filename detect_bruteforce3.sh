@@ -7,7 +7,7 @@ set -euo pipefail
 CHAIN="BAD-ACTORS"
 F2B_JAIL="sshd"
 WHITELIST="/etc/proc_whitelist.txt"
-BAN_LOG="/var/log/active_bans.log"
+BAN_LOG="/var/log/auth.log"
 
 # Persistent save locations (Debian/Ubuntu)
 IPTABLES_SAVE_V4="/etc/iptables/rules.v4"
