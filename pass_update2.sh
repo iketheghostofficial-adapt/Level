@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # --- User Input Section ---
-# Prompt for the new password securely
 echo "=== Password Configuration ==="
 read -rs -p "Enter the new password for whitelisted users: " TESTPASSWORD
-echo "" # Moves to a new line after the hidden input
+echo "" 
 read -rs -p "Confirm the new password: " TESTPASSWORD_CONFIRM
 echo ""
 
-# Check if passwords match
 if [[ "$TESTPASSWORD" != "$TESTPASSWORD_CONFIRM" ]]; then
     echo "ERROR: Passwords do not match. Exiting."
     exit 1
@@ -30,14 +28,12 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Ensure files exist to avoid script failure
 if [[ ! -f "$WHITELIST_FILE" ]]; then
     echo "ERROR: $WHITELIST_FILE not found! Run the TUI manager first."
     exit 1
 fi
 
 if [[ ! -f "$EXCEPTIONS_FILE" ]]; then
-    # Create an empty exceptions file if missing to prevent mapfile error
     touch "$EXCEPTIONS_FILE"
 fi
 
@@ -52,14 +48,19 @@ TOTAL_WHITELIST=("${MANAGED[@]}" "${EXCEPTIONS[@]}")
 echo -e "\n=== Resetting Passwords for Managed Users ==="
 
 for user in "${MANAGED[@]}"; do
-    # STRICT EXCEPTION: Never change root password via this script
+    # STRICT EXCEPTION: Never change root or SECCDC accounts via this script
     if [[ "$user" == "root" ]]; then
         echo "[SKIP] root user protected."
         continue
     fi
 
+    # NEW: Protection for seccdc prefix
+    if [[ "$user" == seccdc* ]]; then
+        echo "[SKIP] $user is a protected SECCDC account."
+        continue
+    fi
+
     if id "$user" &>/dev/null; then
-        # Update password using chpasswd (more reliable for automation)
         echo "$user:$TESTPASSWORD" | chpasswd
         echo "[DONE] Password updated: $user"
     else
@@ -74,14 +75,21 @@ echo -e "\n=== Identifying and Disabling Unauthorized Users ==="
 ALL_SYSTEM_USERS=$(awk -F: '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd)
 
 for system_user in $ALL_SYSTEM_USERS; do
-    # Check if system_user exists in the TOTAL_WHITELIST
+    # Check if system_user exists in the TOTAL_WHITELIST OR has the seccdc prefix
     is_authorized=false
-    for auth_user in "${TOTAL_WHITELIST[@]}"; do
-        if [[ "$system_user" == "$auth_user" ]]; then
-            is_authorized=true
-            break
-        fi
-    done
+    
+    # NEW: Automatic authorization for seccdc prefix
+    if [[ "$system_user" == seccdc* ]]; then
+        is_authorized=true
+    else
+        # Standard whitelist check
+        for auth_user in "${TOTAL_WHITELIST[@]}"; do
+            if [[ "$system_user" == "$auth_user" ]]; then
+                is_authorized=true
+                break
+            fi
+        done
+    fi
 
     if [ "$is_authorized" = true ]; then
         echo "[SAFE] $system_user is authorized/excepted."
@@ -89,7 +97,6 @@ for system_user in $ALL_SYSTEM_USERS; do
         echo "[LOCK] Disabling Unauthorized User: $system_user"
         
         # Performance: Combine all lock actions into one command
-        # -L (Lock), -s (Shell change), -e 1 (Expire account)
         usermod -L -s /usr/sbin/nologin -e 1 "$system_user"
         
         # Security: Physically invalidate the hash in /etc/shadow
