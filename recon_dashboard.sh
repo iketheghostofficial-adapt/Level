@@ -8,7 +8,8 @@ CHOICE=$(whiptail --title "Ubuntu Security Recon Dashboard" --menu "Choose an au
 "4" "Log Analysis (Sudo & History)" \
 "5" "Find Hidden Services/Process" \
 "6" "Scan Logs for Attackers" \
-"7" "Show Current Bans" 3>&1 1>&2 2>&3)
+"7" "Show Current Bans" \
+"8" "Check Services Health" 3>&1 1>&2 2>&3)
 
 # Handle the user's choice
 case $CHOICE in
@@ -48,6 +49,11 @@ case $CHOICE in
 		./manage_bans.sh list
 		read -p "Enter IP to UNBAN (or leave blank): " UNBAN_IP
 		[ ! -z "$UNBAN_IP" ] && ./manage_bans.sh unban "$UNBAN_IP"
+		;;
+	8)
+		clear
+		echo "Checking Service Health"
+		./serv_health.sh
 		;;
 	*)
 		echo "Exiting..."
