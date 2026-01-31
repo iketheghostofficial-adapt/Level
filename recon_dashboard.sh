@@ -41,7 +41,7 @@ case $CHOICE in
 	6)
 		clear
 		echo "Scanning logs for attackers..."
-		./detect_bruteforce3.sh
+		./detect_bruteforce.sh
 		;;
 	7)
 		clear
