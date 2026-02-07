@@ -11,6 +11,16 @@ sudo iptables -X
 sudo ip6tables -F
 sudo ip6tables -X
 
+# 1. Allow all traffic coming IN on the loopback interface
+sudo iptables -A INPUT -i lo -j ACCEPT
+ 
+# 2. Allow all traffic going OUT on the loopback interface
+sudo iptables -A OUTPUT -o lo -j ACCEPT
+
+# State Tracking: Allow packets from established and related connections
+# This ensures that once a connection is started, the back-and-forth traffic is allowed.
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
 # --- 3. Whitelist (Infrastructure & Admin) ---
 # Applies the provided IPs to both Source and Destination as per your original rules
 IFS=',' read -ra ADDR <<< "$WHITELIST"
