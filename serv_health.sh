@@ -1,34 +1,40 @@
 #!/bin/bash
-# check_services.sh - Version/Status Detection
+# check_services.sh - Version/Status Detection (No Restart)
 
-# Define service maps: [Generic Name]="DebianName FedoraName"
 declare -A SVC_MAP=(
-    ["SSH"]="sshd sshd"
-    ["HTTP/S"]="nginx nginx"
-    ["FTP"]="proftpd proftpd"
-    ["LDAP"]="slapd dirsrv"
     ["DNS"]="bind9 named"
-    ["SMB"]="smbd smb"
+    ["FTP"]="proftpd proftpd"
+    ["HTTP/S"]="nginx nginx"
+    ["LDAP"]="slapd dirsrv"
     ["Kerberos"]="krb5-kdc krb5kdc"
+    ["RDP"]="xrdp xrdp"
+    ["SMB"]="smbd smb"
+    ["SSH"]="sshd sshd"
+    ["WinRM"]="openwsman openwsman"
     ["POP3"]="dovecot dovecot"
 )
 
-echo "--- SERVICE STATUS & VERSIONS ---"
+echo "--- RECON DASHBOARD: SERVICE AUDIT ---"
+printf "%-15s %-12s %-20s\n" "SERVICE" "STATUS" "VERSION"
+echo "------------------------------------------------------------"
 
 for FRIENDLY in "${!SVC_MAP[@]}"; do
-    # Pick the right service name for the current OS
-    read -r DEB_NAME FED_NAME <<< "${SVC_MAP[$FRIENDLY]}"
-    
-    if systemctl list-units --type=service | grep -q "$DEB_NAME"; then
-        SVC=$DEB_NAME
-    else
-        SVC=$FED_NAME
-    fi
+    read -r DEB FED <<< "${SVC_MAP[$FRIENDLY]}"
+    # Detect which name exists on this distro
+    if systemctl list-unit-files | grep -q "$DEB.service"; then SVC=$DEB; 
+    elif systemctl list-unit-files | grep -q "$FED.service"; then SVC=$FED; 
+    else SVC="N/A"; fi
 
-    if systemctl is-active --quiet "$SVC"; then
-        VERSION=$($SVC -v 2>&1 | head -n 1 || $SVC --version 2>&1 | head -n 1)
-        echo "[OK] $FRIENDLY ($SVC) is running. Version: ${VERSION:-Unknown}"
+    if [[ "$SVC" != "N/A" ]] && systemctl is-active --quiet "$SVC"; then
+        # Version extraction logic varies by binary
+        case $FRIENDLY in
+            "DNS") VER=$(named -v | awk '{print $2}') ;;
+            "SSH") VER=$(sshd -V 2>&1 | head -n1) ;;
+            "HTTP/S") VER=$(nginx -v 2>&1 | cut -d'/' -f2) ;;
+            *) VER=$($SVC --version 2>&1 | head -n1 | awk '{print $1,$2}') ;;
+        esac
+        printf "%-15s %-12s %-20s\n" "$FRIENDLY" "[ONLINE]" "${VER:-Unknown}"
     else
-        echo "[OFFLINE] $FRIENDLY ($SVC) is not active."
+        printf "%-15s %-12s %-20s\n" "$FRIENDLY" "[OFFLINE]" "---"
     fi
 done
